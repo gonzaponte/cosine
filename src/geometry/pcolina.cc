@@ -40,10 +40,10 @@ G4Material* get_medium(Medium m, f64 xenon_fraction) {
 }
 
 auto pcolina(const geometry_config& g) {
-  auto full_neck_length = g.neck_length     // from cone edge     to gate middle
-                        + g.d_gate_wire     // from mesh middle   to wires middle
-                        + g.d_wire_shield   // from wires middle  to shield middle
-                        + g.d_shield_sipms; // from shield middle to sipms front
+  auto full_neck_length = g.neck_length     // from cone   edge   to gate   middle
+                        + g.d_gate_wire     // from mesh   middle to wires  middle
+                        + g.d_wire_shield   // from wires  middle to shield middle
+                        + g.d_shield_sipms; // from shield middle to sipms  front
 
   auto air    = n4::material("G4_AIR");
   auto medium = get_medium(g.medium, g.xenon_fraction);

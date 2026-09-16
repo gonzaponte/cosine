@@ -91,7 +91,6 @@ std::vector<ConfPar> geometry_config::parameter_list() {
     WITHUNIT(sipm_gap, mm),
     UNITLESS(n_sipm_side),
     WITHUNIT(cath_thick, mm),
-    WITHUNIT(frame_thick_mesh, mm),
     WITHUNIT(frame_thick_wires, mm),
     WITHUNIT(frame_width, mm),
     WITHUNIT(neck_length, mm),

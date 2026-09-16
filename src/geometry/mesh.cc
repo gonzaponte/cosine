@@ -58,7 +58,7 @@ G4LogicalVolume* create_wire_mesh(G4double diam, G4double pitch, G4double wire_d
 }
 
 G4Polyhedra* hexagon(G4double inradius, G4double thick) {
-  auto eps = 1e6 * thick;
+  auto eps = 1e-3 * thick;
   G4double z_planes[2] = {-thick/2 - eps, thick/2 + eps};
   G4double  r_inner[2] = {0., 0.};
   G4double  r_outer[2] = {inradius, inradius};
@@ -104,19 +104,19 @@ posvec generate_hexagon_positions(G4double pitch, G4double rmax) {
   return out;
 }
 
-G4LogicalVolume* create_hex_mesh(G4double frame_diam, G4double frame_thick, G4double frame_width, G4double pitch, G4double mesh_thick, G4double hex_inradius) {
+G4LogicalVolume* create_hex_mesh(G4double frame_diam, G4double frame_width, G4double pitch, G4double thick, G4double hex_inradius) {
   auto protomesh = n4::tubs("frame")
     .r(frame_diam / 2)
-    .z(mesh_thick)
+    .z(thick)
     .solid();
 
   auto frame = n4::tubs("frame")
     .r_inner(frame_diam / 2)
     .r_delta(frame_width)
-    .z(frame_thick)
+    .z(thick)
     .solid();
 
-  auto hex   = hexagon(hex_inradius, mesh_thick);
+  auto hex = hexagon(hex_inradius, thick);
 
   G4SubtractionSolid* mesh = nullptr;
   for (auto p: generate_hexagon_positions(pitch, frame_diam/2)) {

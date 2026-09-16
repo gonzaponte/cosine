@@ -86,11 +86,11 @@ auto pcolina(const geometry_config& g) {
   auto neck = n4::tubs("neck")
     .r_inner(g.el_r())
     .r_delta(g.wall_thick)
-    .z(g.neck_length - g.frame_thick_mesh/2)
+    .z(g.neck_length - g.mesh_thick/2)
     .vis(white)
     .place(ptfe)
     .in(liquid)
-    .at_z(g.neck_length/2 + g.frame_thick_mesh/4)
+    .at_z(g.neck_length/2 + g.mesh_thick/4)
     .now();
 
   new G4LogicalSkinSurface("neck_surface", neck -> GetLogicalVolume(), ptfe_surface());
@@ -171,7 +171,6 @@ auto pcolina(const geometry_config& g) {
     .now();
 
   auto mesh_el = create_hex_mesh( g.el_diam
-                                , g.frame_thick_mesh
                                 , g.frame_width
                                 , g.mesh_hex_pitch
                                 , g.mesh_thick

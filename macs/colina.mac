@@ -16,7 +16,6 @@
 /sim/sipm_gap          0.2  mm
 /sim/n_sipm_side       10       # array of NxN
 /sim/cath_thick          3 mm
-/sim/frame_thick_mesh    2 mm
 /sim/frame_thick_wires   4 mm
 /sim/frame_width         1 mm
 /sim/neck_length        10 mm

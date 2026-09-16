@@ -58,7 +58,6 @@ messenger::messenger(sim_config& s, geometry_config& g)
   SETU(sipm_gap           ,  mm);
   SET (n_sipm_side             );
   SETU(cath_thick         ,  mm);
-  SETU(frame_thick_mesh   ,  mm);
   SETU(frame_thick_wires  ,  mm);
   SETU(frame_width        ,  mm);
   SETU(neck_length        ,  mm);

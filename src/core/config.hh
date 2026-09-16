@@ -59,7 +59,6 @@ struct geometry_config {
   f64 sipm_gap;
   u16 n_sipm_side;
   f64 cath_thick;
-  f64 frame_thick_mesh;
   f64 frame_thick_wires;
   f64 frame_width;
   f64 neck_length;
@@ -120,7 +119,6 @@ inline geometry_config geometry_config::colina() {
   .sipm_gap              = 0.2  * mm,
   .n_sipm_side           = 10,        // array of NxN
   .cath_thick            = 5 * mm,
-  .frame_thick_mesh      = 2 * mm,
   .frame_thick_wires     = 4 * mm,
   .frame_width           = 1 * mm,
   .neck_length           = 10 * mm,

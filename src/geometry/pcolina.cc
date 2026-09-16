@@ -90,7 +90,7 @@ auto pcolina(const geometry_config& g) {
     .vis(white)
     .place(ptfe)
     .in(liquid)
-    .at_z(g.neck_length/2 + g.mesh_thick/4)
+    .at_z(g.neck_length/2 + g.mesh_thick/2)
     .now();
 
   new G4LogicalSkinSurface("neck_surface", neck -> GetLogicalVolume(), ptfe_surface());
@@ -180,6 +180,30 @@ auto pcolina(const geometry_config& g) {
 
   n4::place(mesh_el).name("gate"  )                                      .in(liquid).now();
   n4::place(mesh_el).name("shield").at_z(-g.d_gate_wire -g.d_wire_shield).in(liquid).now();
+
+  auto spacer_gate_wire_thickness = g.d_gate_wire - g.frame_thick_wires/2 - g.mesh_thick/2;
+  auto spacer_gate_wire = n4::tubs("spacer_gate_wire")
+    .r_inner(g.el_r())
+    .r_delta(g.wall_thick)
+    .z(spacer_gate_wire_thickness)
+    .vis(white)
+    .place(ptfe)
+    .in(liquid)
+    .at_z(-spacer_gate_wire_thickness/2 - g.mesh_thick/2)
+    .now();
+  new G4LogicalSkinSurface("spacer_gate_wire_surface", spacer_gate_wire -> GetLogicalVolume(), ptfe_surface());
+
+  auto spacer_wire_shield_thickness = g.d_wire_shield - g.frame_thick_wires/2 - g.mesh_thick/2;
+  auto spacer_wire_shield = n4::tubs("spacer_wire_shield")
+    .r_inner(g.el_r())
+    .r_delta(g.wall_thick)
+    .z(spacer_wire_shield_thickness)
+    .vis(white)
+    .place(ptfe)
+    .in(liquid)
+    .at_z(-spacer_wire_shield_thickness/2 - g.d_gate_wire - g.frame_thick_wires)
+    .now();
+  new G4LogicalSkinSurface("spacer_wire_shield_surface", spacer_wire_shield -> GetLogicalVolume(), ptfe_surface());
 
   auto z_cathode = g.neck_length + g.drift_length + g.cath_thick/2;
   z_cathode += g.ptfe_on_fp ? g.wall_thick : 0;

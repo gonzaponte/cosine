@@ -12,22 +12,24 @@
 
 #include <cmath>
 
-G4PVPlacement* straight_calibration_belt(const geometry_config& g, G4PVPlacement* liquid, n4::vis_attributes& attrs) {
+G4PVPlacement* straight_calibration_belt(const geometry_config& g, G4LogicalVolume* mother, n4::vis_attributes& attrs) {
     auto tilt   = std::atan(g.form_factor);
     auto steel  = steel_with_properties();
-    auto length = std::sqrt(1 + g.form_factor*g.form_factor) * g.drift_length;
+//    auto length = std::sqrt(1 + g.form_factor*g.form_factor) * g.drift_length;
+    auto length = g.drift_length / g.form_factor;
 
     // distance between wall and belt's axis
     auto d = g.calib_belt_separation + g.calib_belt_router;
     auto r = g.el_r()
-           + g.wall_thick
-           + g.d_ptfe_cryostat
-           + g.cryostat_wall_thick
-           + d * std::cos(tilt)
-           + length/2 * std::sin(tilt);
+           + ( g.wall_thick
+             + g.d_ptfe_vessel
+             + g.vessel_wall_thick
+             + d) / g.costheta()
+             + g.form_factor * g.drift_length/2;
+
     auto z = g.neck_length
-           - d*std::sin(tilt)
-           + length/2 * std::cos(tilt);
+           - d * g.sintheta()
+           + length/2 * g.costheta();
 
     return n4::tubs("calibration_belt")
       .r_inner(g.calib_belt_rinner)
@@ -35,17 +37,17 @@ G4PVPlacement* straight_calibration_belt(const geometry_config& g, G4PVPlacement
       .z(length)
       .vis(attrs)
       .place(steel)
-      .in(liquid)
+      .in(mother)
       .rotate_y(tilt)
-      .at({r, 0, z})
+      .at({r, 0., z})
       .now();
 }
 
 G4ExtrudedSolid* spiral(f64 r_tube, const geometry_config& g, const std::string& name) {
   auto r0_spiral = g.el_r()
                  + g.wall_thick
-                 + g.d_ptfe_cryostat
-                 + g.cryostat_wall_thick
+                 + g.d_ptfe_vessel
+                 + g.vessel_wall_thick
                  + g.calib_belt_separation
                  + g.calib_belt_router;
 
@@ -70,7 +72,7 @@ G4ExtrudedSolid* spiral(f64 r_tube, const geometry_config& g, const std::string&
   return new G4ExtrudedSolid(name, polygon, zsections);
 }
 
-G4PVPlacement* spiral_calibration_belt(const geometry_config& g, G4PVPlacement* liquid, n4::vis_attributes& attrs) {
+G4PVPlacement* spiral_calibration_belt(const geometry_config& g, G4LogicalVolume* mother, n4::vis_attributes& attrs) {
   auto steel = steel_with_properties();
 
   auto outer = spiral(g.calib_belt_router, g, "calib_belt_outer");
@@ -78,6 +80,7 @@ G4PVPlacement* spiral_calibration_belt(const geometry_config& g, G4PVPlacement* 
   auto diff  = new G4SubtractionSolid("calibration_belt", outer, inner);
   auto logic = n4::volume(diff, steel); logic -> SetVisAttributes(attrs);
   return n4::place(logic)
-    .in(liquid)
+    .in(mother)
+    .at_z(g.neck_length + g.drift_length/2)
     .now();
 }

@@ -112,7 +112,7 @@ std::unique_ptr<G4VUserPrimaryGeneratorAction> select_generator(const sim_config
     else {
       auto offset = 0.1 * mm;
       auto pos = std::make_unique<cylindrical_volume_generator>(offset, 0.0, g.cath_r());
-      pos -> offset_z(g.neck_length + g.drift_length - offset);
+      pos -> offset_z(g.neck_length + g.drift_length - 2*g.sipm_thick - offset);
 
       gen = gen_ -> pos(std::move(pos));
     }

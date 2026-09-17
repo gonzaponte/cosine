@@ -67,8 +67,8 @@ struct geometry_config {
   f64 fc_ring_width;
   f64 fc_ring_thick;
   f64 pillow_plate_thick;
-  f64 cryostat_wall_thick;
-  f64 d_ptfe_cryostat;
+  f64 vessel_wall_thick;
+  f64 d_ptfe_vessel;
 
   CalibrationBelt calib_belt;
   f64 calib_belt_router;
@@ -86,7 +86,8 @@ struct geometry_config {
   f64 cath_diam() const { return 2 * form_factor * drift_length + el_diam; }
   f64 cath_r   () const { return cath_diam()/2; }
   f64 el_r     () const { return el_diam/2; }
-
+  f64 sintheta () const { return form_factor  * costheta(); }
+  f64 costheta () const { return 1.0 / std::sqrt(1 + form_factor*form_factor); }
   void check() const;
 
   const std::vector<f64>& wire_poss() const;
@@ -127,8 +128,8 @@ inline geometry_config geometry_config::colina() {
   .fc_ring_width         =  5 * mm,
   .fc_ring_thick         =  2 * mm,
   .pillow_plate_thick    =  1 * mm,
-  .cryostat_wall_thick   =  3 * mm,
-  .d_ptfe_cryostat       =  4 * mm,
+  .vessel_wall_thick     =  3 * mm,
+  .d_ptfe_vessel         =  4 * mm,
 
   .calib_belt_router     = 5 * mm,
   .calib_belt_rinner     = 4 * mm,

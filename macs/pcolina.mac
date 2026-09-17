@@ -19,13 +19,13 @@
 /sim/frame_thick_wires   4 mm
 /sim/frame_width         1 mm
 /sim/neck_length        10 mm
-/sim/fc_rings            7
-/sim/fc_ring_zpitch     15 mm
+/sim/fc_rings            9
+/sim/fc_ring_zpitch     14.9 mm
 /sim/fc_ring_width       5 mm
 /sim/fc_ring_thick       2 mm
 /sim/pillow_plate_thick  1 mm
-/sim/cryostat_wall_thick 3 mm
-/sim/d_ptfe_cryostat     4 mm
+/sim/vessel_wall_thick   3 mm
+/sim/d_ptfe_vessel       5 mm
 
 /sim/calib_belt            STRAIGHT
 /sim/calib_belt_router     5 mm

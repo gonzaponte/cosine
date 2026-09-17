@@ -40,12 +40,7 @@ G4Material* get_medium(Medium m, f64 xenon_fraction) {
 }
 
 auto pcolina(const geometry_config& g) {
-  auto full_neck_length = g.neck_length     // from cone   edge   to gate   middle
-                        + g.d_gate_wire     // from mesh   middle to wires  middle
-                        + g.d_wire_shield   // from wires  middle to shield middle
-                        + g.d_shield_sipms; // from shield middle to sipms  front
-
-  auto air    = n4::material("G4_AIR");
+  auto vacuum = n4::material("G4_Galactic");
   auto medium = get_medium(g.medium, g.xenon_fraction);
   auto ptfe   =  ptfe_with_properties();
   auto steel  = steel_with_properties();
@@ -54,34 +49,72 @@ auto pcolina(const geometry_config& g) {
     return G4Color{c.GetRed(), c.GetGreen(), c.GetBlue(), t};
   };
 
-  auto transparent = n4::vis_attributes().visible(true).colour({1, 1, 1, 0});
+//  auto transparent = n4::vis_attributes().visible(true).colour({1, 1, 1, 0});
   auto invisible   = n4::vis_attributes().visible(false);
-  // auto wireframe   = n4::vis_attributes().visible(true).color(G4Color::White()).force_wireframe(true).line_width(5);
+//  auto wireframe   = n4::vis_attributes().visible(true).color(G4Color::White()).force_wireframe(true).line_width(5);
   auto  white      = n4::vis_attributes().visible(true).color(G4Color::White());
   auto twhite      = n4::vis_attributes().visible(true).color(seethrough(G4Color::White()));
   auto green       = n4::vis_attributes().visible(true).color(G4Color::Green());
   auto gray        = n4::vis_attributes().visible(true).color(G4Color::Gray());
-  auto tgray       = n4::vis_attributes().visible(true).color(seethrough(G4Color::Gray(), 0.3));
+  auto tgray       = n4::vis_attributes().visible(true).color(seethrough(G4Color::Gray(), 0.1));
   auto tred        = n4::vis_attributes().visible(true).color(seethrough(G4Color::Red(), 0.05));
-  // auto frame       = n4::vis_attributes().visible(true).color(G4Color::Grey ()).force_wireframe(true);
+//  auto frame       = n4::vis_attributes().visible(true).color(G4Color::Grey ()).force_wireframe(true);
   //n4::place::check_overlaps_switch_on();
 
-  auto world = n4::box("world")
-    .cube(1.2 * g.cath_diam())
-    .z(2.5 * g.drift_length)
-    .vis(transparent)
-    .volume(air);
+  auto extra = 3 * cm;
+  auto d_cathode_bottom = 3 * cm;
+  auto d_cone_sipms = g.neck_length     // from cone   edge   to gate   middle
+                    + g.d_gate_wire     // from mesh   middle to wires  middle
+                    + g.d_wire_shield   // from wires  middle to shield middle
+                    + g.d_shield_sipms; // from shield middle to sipms  front
+  auto full_neck_length = d_cone_sipms + g.sipm_thick*2 + extra;
+  auto      cone_length = g.drift_length + d_cathode_bottom;
 
-  auto extra = 2*cm;
-  auto liquid_length = g.drift_length + full_neck_length + extra;
-  auto liquid = n4::box("liquid")
-    .cube(1.1 * g.cath_diam())
-    .half_z(liquid_length) // because we want gate to be at 0 and everything is inside liquid,this needs to be symmetric
+  auto vessel_displacement = (cone_length + g.vessel_wall_thick)/2 + g.neck_length;
+
+  auto outer_vessel_diam   = 1 * m;
+  auto outer_vessel_length = 1 * m;
+  auto world = n4::tubs("world")
+    .r(outer_vessel_diam/2)
+    .z(outer_vessel_length)
+    .vis(tgray)
+    .volume(vacuum);
+
+  auto inner_vessel = n4::cons("inner_vessel")
+    .r1(g.  el_r() + (g.d_ptfe_vessel + g.vessel_wall_thick) / g.costheta())
+    .r2(g.cath_r() + (g.d_ptfe_vessel + g.vessel_wall_thick) / g.costheta() + g.form_factor * (d_cathode_bottom + g.vessel_wall_thick))
+    .z(cone_length + g.vessel_wall_thick)
+    .add( n4::tubs("inner_vessel_neck")
+         .r(g.el_r() + (g.d_ptfe_vessel + g.vessel_wall_thick) / g.costheta())
+         .z(full_neck_length + g.vessel_wall_thick)
+         .solid()
+    )
+    .at_z(-(cone_length + g.vessel_wall_thick)/2 - full_neck_length/2 - g.vessel_wall_thick/2)
+    .vis(tgray)
+    .place(steel)
+    .in(world)
+    .at_z(vessel_displacement)
+    .now();
+  new G4LogicalSkinSurface("vessel_wall surface", inner_vessel ->  GetLogicalVolume(), steel_surface());
+
+  auto liquid = n4::cons("liquid")
+    .r1(g.  el_r() + g.d_ptfe_vessel / g.costheta())
+    .r2(g.cath_r() + g.d_ptfe_vessel / g.costheta() + g.form_factor * d_cathode_bottom)
+    .z(cone_length)
+    .add( n4::tubs("liquid_neck")
+         .r(g.el_r() + g.d_ptfe_vessel / g.costheta())
+         .z(full_neck_length)
+         .solid()
+    )
+    .at_z(-cone_length/2 -full_neck_length/2)
     .vis(tred)
     .sensitive(sensitive_noble().release())
     .place(medium)
-    .in(world)
+    .in(inner_vessel)
+    .at_z(-g.vessel_wall_thick/2)
     .now();
+
+  auto gate_pos = -cone_length/2 - g.neck_length;
 
   auto neck = n4::tubs("neck")
     .r_inner(g.el_r())
@@ -90,34 +123,11 @@ auto pcolina(const geometry_config& g) {
     .vis(white)
     .place(ptfe)
     .in(liquid)
-    .at_z(g.neck_length/2 + g.mesh_thick/2)
+    .at_z(gate_pos + g.mesh_thick/2 + (g.neck_length - g.mesh_thick/2)/2)
     .now();
 
-  new G4LogicalSkinSurface("neck_surface", neck -> GetLogicalVolume(), ptfe_surface());
-
-
-  // Field cage rings
-  for (auto i=0; i<g.fc_rings; i++) {
-    char name[30];
-    auto z  = g.fc_ring_zpitch*i + g.fc_ring_width/2;
-    auto r1 = g.el_r() + g.form_factor * (z - g.fc_ring_width/2);
-    auto r2 = g.el_r() + g.form_factor * (z + g.fc_ring_width/2);
-    std::sprintf(name, "field_cage_ring_%d", i);
-    auto ring = n4::cons(name)
-      .r1_inner(r1)
-      .r2_inner(r2)
-      .r_delta(g.fc_ring_thick)
-      .z(g.fc_ring_width)
-      .vis(gray)
-      .place(steel)
-      .in(liquid)
-      .at_z(g.neck_length + z)
-      .now();
-
-    char name2[30];
-    std::sprintf(name2, "%s_surface", name);
-    new G4LogicalSkinSurface(name2, ring -> GetLogicalVolume(), steel_surface());
-  }
+  new G4LogicalSkinSurface("neck_surface", neck -> GetLogicalVolume(),
+  ptfe_surface());
 
   if (g.ptfe_on_walls) {
     auto ptfe_walls = n4::cons("ptfe_walls")
@@ -128,84 +138,36 @@ auto pcolina(const geometry_config& g) {
       .vis(twhite)
       .place(ptfe)
       .in(liquid)
-      .at_z(g.neck_length + g.drift_length/2)
+      .at_z(gate_pos + g.neck_length + g.drift_length/2)
       .now();
 
-    new G4LogicalSkinSurface("cath_surface", ptfe_walls -> GetLogicalVolume(), ptfe_surface());
+    new G4LogicalSkinSurface("cath_surface", ptfe_walls -> GetLogicalVolume(),  ptfe_surface());
   }
 
-  auto cryo_wall = n4::cons("cryo_wall")
-      .r1_inner(g.  el_r() + g.d_ptfe_cryostat)
-      .r2_inner(g.cath_r() + g.d_ptfe_cryostat)
-      .r_delta(g.cryostat_wall_thick)
-      .z(g.drift_length)
-      .vis(tgray)
+  // Field cage rings
+  for (auto i=0; i<g.fc_rings; i++) {
+    char name[30];
+    auto z  = g.fc_ring_zpitch*i + g.fc_ring_width/2;
+    auto r1 = g.el_r() + g.form_factor * (z - g.fc_ring_width/2) + g.wall_thick;
+    auto r2 = g.el_r() + g.form_factor * (z + g.fc_ring_width/2) + g.wall_thick;
+    std::sprintf(name, "field_cage_ring_%d", i);
+    auto ring = n4::cons(name)
+      .r1_inner(r1)
+      .r2_inner(r2)
+      .r_delta(g.fc_ring_thick)
+      .z(g.fc_ring_width)
+      .vis(gray)
       .place(steel)
       .in(liquid)
-      .at_z(g.neck_length + g.drift_length/2)
+      .at_z(gate_pos + g.neck_length + z)
       .now();
 
-  new G4LogicalSkinSurface("cryowall surface", cryo_wall -> GetLogicalVolume(), steel_surface());
+    char name2[30];
+    std::sprintf(name2, "%s_surface", name);
+    new G4LogicalSkinSurface(name2, ring -> GetLogicalVolume(), steel_surface());
+  }
 
-  n4::cons("pillow_plate")
-      .r1_inner(g.  el_r() + g.d_ptfe_cryostat + g.cryostat_wall_thick)
-      .r2_inner(g.cath_r() + g.d_ptfe_cryostat + g.cryostat_wall_thick)
-      .r_delta(g.pillow_plate_thick)
-      .z(g.drift_length)
-      .vis(tgray)
-      .place(steel)
-      .in(liquid)
-      .at_z(g.neck_length + g.drift_length/2)
-      .now();
-
-
-
-  auto wire_array = create_wire_array(g);
-
-  wire_array -> SetVisAttributes(gray);
-  n4::place(wire_array)
-    .name("thin_wires")
-    .rot_z(g.thin_wire_rot)
-    .at_z(-g.d_gate_wire)
-    .in(liquid)
-    .now();
-
-  auto mesh_el = create_hex_mesh( g.el_diam
-                                , g.frame_width
-                                , g.mesh_hex_pitch
-                                , g.mesh_thick
-                                , g.mesh_hex_inradius);
-  mesh_el -> SetVisAttributes(invisible);
-  // mesh_el -> SetVisAttributes(green);
-
-  n4::place(mesh_el).name("gate"  )                                      .in(liquid).now();
-  n4::place(mesh_el).name("shield").at_z(-g.d_gate_wire -g.d_wire_shield).in(liquid).now();
-
-  auto spacer_gate_wire_thickness = g.d_gate_wire - g.frame_thick_wires/2 - g.mesh_thick/2;
-  auto spacer_gate_wire = n4::tubs("spacer_gate_wire")
-    .r_inner(g.el_r())
-    .r_delta(g.wall_thick)
-    .z(spacer_gate_wire_thickness)
-    .vis(white)
-    .place(ptfe)
-    .in(liquid)
-    .at_z(-spacer_gate_wire_thickness/2 - g.mesh_thick/2)
-    .now();
-  new G4LogicalSkinSurface("spacer_gate_wire_surface", spacer_gate_wire -> GetLogicalVolume(), ptfe_surface());
-
-  auto spacer_wire_shield_thickness = g.d_wire_shield - g.frame_thick_wires/2 - g.mesh_thick/2;
-  auto spacer_wire_shield = n4::tubs("spacer_wire_shield")
-    .r_inner(g.el_r())
-    .r_delta(g.wall_thick)
-    .z(spacer_wire_shield_thickness)
-    .vis(white)
-    .place(ptfe)
-    .in(liquid)
-    .at_z(-spacer_wire_shield_thickness/2 - g.d_gate_wire - g.frame_thick_wires)
-    .now();
-  new G4LogicalSkinSurface("spacer_wire_shield_surface", spacer_wire_shield -> GetLogicalVolume(), ptfe_surface());
-
-  auto z_cathode = g.neck_length + g.drift_length + g.cath_thick/2;
+  auto z_cathode = gate_pos + g.neck_length + g.drift_length + g.cath_thick/2;
   z_cathode += g.ptfe_on_fp ? g.wall_thick : 0;
   auto cathode = n4::tubs("cathode")
     .r(g.cath_r() + g.wall_thick)
@@ -215,7 +177,6 @@ auto pcolina(const geometry_config& g) {
     .at_z(z_cathode)
     .in(liquid)
     .now();
-
   new G4LogicalSkinSurface("cathode_surface", cathode -> GetLogicalVolume(), steel_surface());
 
   G4PVPlacement* ptfe_cathode = nullptr;
@@ -225,16 +186,72 @@ auto pcolina(const geometry_config& g) {
       .z(g.wall_thick)
       .vis(white)
       .place(ptfe)
-      .at_z(g.neck_length + g.drift_length + g.wall_thick/2)
+      .at_z(gate_pos + g.neck_length + g.drift_length + g.wall_thick/2)
       .in(liquid)
       .now();
 
     new G4LogicalSkinSurface("cath_surface", ptfe_cathode -> GetLogicalVolume(), ptfe_surface());
   }
 
+  // n4::cons("pillow_plate")
+  //     .r1_inner(g.  el_r() + g.d_ptfe_vessel + g.vessel_wall_thick)
+  //     .r2_inner(g.cath_r() + g.d_ptfe_vessel + g.vessel_wall_thick)
+  //     .r_delta(g.pillow_plate_thick)
+  //     .z(g.drift_length)
+  //     .vis(tgray)
+  //     .place(steel)
+  //     .in(liquid)
+  //     .at_z(g.neck_length + g.drift_length/2)
+  //     .now();
+
+  auto spacer_gate_wire_thickness = g.d_gate_wire - g.frame_thick_wires/2 -
+  g.mesh_thick/2; auto spacer_gate_wire = n4::tubs("spacer_gate_wire")
+    .r_inner(g.el_r())
+    .r_delta(g.wall_thick)
+    .z(spacer_gate_wire_thickness)
+    .vis(white)
+    .place(ptfe)
+    .in(liquid)
+    .at_z(gate_pos - g.mesh_thick/2 - spacer_gate_wire_thickness/2)
+    .now();
+  new G4LogicalSkinSurface("spacer_gate_wire_surface", spacer_gate_wire -> GetLogicalVolume(), ptfe_surface());
+
+  auto mesh_el = create_hex_mesh( g.el_diam
+                                , g.frame_width
+                                , g.mesh_hex_pitch
+                                , g.mesh_thick
+                                , g.mesh_hex_inradius);
+  mesh_el -> SetVisAttributes(invisible);
+  // mesh_el -> SetVisAttributes(green);
+
+  n4::place(mesh_el).name("gate"  ).at_z(gate_pos)                                  .in(liquid).now();
+  n4::place(mesh_el).name("shield").at_z(gate_pos - g.d_gate_wire - g.d_wire_shield).in(liquid).now();
+
+  auto wire_array = create_wire_array(g);
+  wire_array -> SetVisAttributes(gray);
+  n4::place(wire_array)
+    .name("thin_wires")
+    .rot_z(g.thin_wire_rot)
+    .at_z(gate_pos - g.d_gate_wire)
+    .in(liquid)
+    .now();
+
+  auto spacer_wire_shield_thickness = g.d_wire_shield - g.frame_thick_wires/2 -
+  g.mesh_thick/2; auto spacer_wire_shield = n4::tubs("spacer_wire_shield")
+    .r_inner(g.el_r())
+    .r_delta(g.wall_thick)
+    .z(spacer_wire_shield_thickness)
+    .vis(white)
+    .place(ptfe)
+    .in(liquid)
+    .at_z(gate_pos - g.d_gate_wire - g.frame_thick_wires/2 - spacer_wire_shield_thickness/2)
+    .now();
+  new G4LogicalSkinSurface("spacer_wire_shield_surface", spacer_wire_shield -> GetLogicalVolume(), ptfe_surface());
+
   auto sipm_array = build_sipm_array(g.sipm_size, g.sipm_thick, g.sipm_gap, g.n_sipm_side);
+
   n4::place(sipm_array)
-    .at_z(-full_neck_length + g.neck_length -g.sipm_thick) // support is 2*thickness, so this is ok
+    .at_z(gate_pos + g.neck_length - d_cone_sipms - g.sipm_thick) // support is 2*thickness, so this is ok
     .in(liquid)
     .copy_no(0)
     .name("near_plane")
@@ -245,13 +262,14 @@ auto pcolina(const geometry_config& g) {
     auto n = 1;
     for   (auto x : {-delta, delta}) {
       for (auto y : {-delta, delta}) {
-        auto z =  g.ptfe_on_fp                  ?
-                 -g.wall_thick/2 + g.sipm_thick :
-                 -g.cath_thick/2 + g.sipm_thick ;
+        // The support is thicker than the face plate, so it cannot be a
+        // daughter of it.  Place it in the liquid, flush with the plate's
+        // inner face instead.
+        auto z = gate_pos + g.neck_length + g.drift_length - g.sipm_thick;
         n4::place(sipm_array)
           .rot_y(180 * deg)
           .at(x, y, z)
-          .in(g.ptfe_on_fp ? ptfe_cathode : cathode)
+          .in(liquid)
           .copy_no(n++)
           .name("far_plane")
           .now();
@@ -260,10 +278,11 @@ auto pcolina(const geometry_config& g) {
   }
 
   switch (g.calib_belt) {
-    case CalibrationBelt::STRAIGHT: straight_calibration_belt(g, liquid, green); break;
-    case CalibrationBelt::SPIRAL  :   spiral_calibration_belt(g, liquid, green); break;
+    case CalibrationBelt::STRAIGHT: straight_calibration_belt(g, world, green); break;
+    case CalibrationBelt::SPIRAL  :   spiral_calibration_belt(g, world, green); break;
     case CalibrationBelt::NONE    : break;
   }
 
   return n4::place(world).now();
+
 }

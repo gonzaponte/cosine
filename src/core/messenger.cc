@@ -66,8 +66,8 @@ messenger::messenger(sim_config& s, geometry_config& g)
   SETU(fc_ring_width      ,  mm);
   SETU(fc_ring_thick      ,  mm);
   SETU(pillow_plate_thick ,  mm);
-  SETU(cryostat_wall_thick,  mm);
-  SETU(d_ptfe_cryostat    ,  mm);
+  SETU(vessel_wall_thick  ,  mm);
+  SETU(d_ptfe_vessel      ,  mm);
   SET (sipms_on_fp             );
   SET ( ptfe_on_fp             );
   SET(ptfe_on_walls            );

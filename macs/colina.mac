@@ -24,8 +24,8 @@
 /sim/fc_ring_width       5 mm
 /sim/fc_ring_thick       2 mm
 /sim/pillow_plate_thick  1 mm
-/sim/cryostat_wall_thick 3 mm
-/sim/d_ptfe_cryostat     4 mm
+/sim/vessel_wall_thick   3 mm
+/sim/d_ptfe_vessel       5 mm
 
 /sim/calib_belt            STRAIGHT
 /sim/calib_belt_router     5 mm

@@ -17,6 +17,11 @@
 #include <G4Polyhedra.hh>
 #include <G4PVPlacement.hh>
 #include <G4SystemOfUnits.hh>
+#include <G4VPhysicalVolume.hh>
+#include <G4LogicalVolume.hh>
+#include <G4Transform3D.hh>
+#include <G4SystemOfUnits.hh>
+#include <G4ios.hh>
 
 #include <cmath>
 
@@ -26,6 +31,9 @@
 #include <n4-volume.hh>
 #include <n4-vis-attributes.hh>
 
+
+void PrintSiPMPositions(const G4VPhysicalVolume *pv,
+                        const G4Transform3D &transformToWorld);
 
 G4Material* get_medium(Medium m, f64 xenon_fraction) {
   switch (m) {
@@ -283,6 +291,35 @@ auto pcolina(const geometry_config& g) {
     case CalibrationBelt::NONE    : break;
   }
 
-  return n4::place(world).now();
+  auto full_geometry = n4::place(world).now();
+  PrintSiPMPositions(full_geometry, G4Transform3D());
+  return full_geometry;
+}
 
+void PrintSiPMPositions(const G4VPhysicalVolume* pv, const G4Transform3D& transformToWorld)
+{
+    // Position of this volume's local origin in world coordinates
+    const auto pos = transformToWorld.getTranslation();
+
+    if (pv -> GetName().rfind("sipm_", 0) == 0) {
+        std::cout << pv -> GetName()
+                  << " copy " << pv -> GetCopyNo()
+                  << " : ("
+                  << pos.x()/mm << ", "
+                  << pos.y()/mm << ", "
+                  << pos.z()/mm << ") mm"
+                  << std::endl;
+    }
+
+    auto lv = pv -> GetLogicalVolume();
+    for (G4int i = 0; i < lv -> GetNoDaughters(); ++i) {
+        auto* daughter = lv -> GetDaughter(i);
+
+        const G4Transform3D daughterToMother( daughter -> GetObjectRotationValue(),
+                                              daughter -> GetObjectTranslation());
+
+        const auto daughterToWorld = transformToWorld * daughterToMother;
+
+        PrintSiPMPositions(daughter, daughterToWorld);
+    }
 }
